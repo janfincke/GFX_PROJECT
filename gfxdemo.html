@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>
+    </title>
+    <style>
+    body { 
+        margin: 0; overflow:hidden; 
+    }
+    canvas { 
+        width: 100%; height: 100% 
+    }
+    #status {
+        position: absolute; top: 85%;
+    }
+    #blocker {
+
+				position: absolute;
+
+				width: 100%;
+				height: 100%;
+
+				background-color: rgba(0,0,0,0.5);
+
+			}
+
+			#instructions {
+
+				width: 100%;
+				height: 100%;
+
+				display: -webkit-box;
+				display: -moz-box;
+				display: box;
+
+				-webkit-box-orient: horizontal;
+				-moz-box-orient: horizontal;
+				box-orient: horizontal;
+
+				-webkit-box-pack: center;
+				-moz-box-pack: center;
+				box-pack: center;
+
+				-webkit-box-align: center;
+				-moz-box-align: center;
+				box-align: center;
+
+				color: #ffffff;
+				text-align: center;
+
+				cursor: pointer;
+
+    </style>
+  </head>
+   <body>
+ <!--   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r72/three.min.js"></script>-->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r72/three.js"></script>
+    <script src ="https://code.jquery.com/jquery-1.11.3.js"></script>
+    <script src="https://raw.githubusercontent.com/mrdoob/three.js/master/examples/js/controls/PointerLockControls.js"></script>
+    <script src="http://stemkoski.github.io/Three.js/fonts/helvetiker_regular.typeface.js"></script>
+    <script src="https://raw.githubusercontent.com/mrdoob/three.js/master/examples/js/loaders/ColladaLoader.js"></script>
+    <script src="physi.js"></script>
+    
+    
+    <div id="blocker">
+
+			<div id="instructions">
+				<span style="font-size:40px">Click to play</span>
+				<br />
+				(W, A, S, D = Move, SPACE = Jump, MOUSE = Look around)
+			</div>
+
+		</div>
+    
+    
+    
+    
+    
+    <script type="text/javascript">
+var scene, camera, renderer, controls, clock, pivot, controlsEnabled, geometry, materials = [], parameters, i, h, color, size;
+
+var havePointerLock = checkForPointerLock();
+var moveForward,
+moveBackward,
+moveLeft,
+moveRight,
+canJump;
+var velocity = new THREE.Vector3(); 
+var objects = [];
+var blocker = document.getElementById( 'blocker' );
+var instructions = document.getElementById( 'instructions' );
+
+var havePointerLock = 'pointerLockElement' in document || 'mozPointerLockElement' in document || 'webkitPointerLockElement' in document;
+var prevTime = performance.now();
+var velocity = new THREE.Vector3();
+
+
+init();
+animate();
+
+Physijs.scripts.ammo = 'ammo.js';
+Physijs.scripts.worker = 'physijs_worker.js';
+
+//-------------------------------------------------------------------------------------------------------------------------
+
+//INIT
+function init() {      
+      scene = new Physijs.Scene();
+      camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
+      renderer = new THREE.WebGLRenderer({antialias:true});
+      renderer.setSize( window.innerWidth, window.innerHeight );
+      document.body.appendChild( renderer.domElement );
+      renderer.shadowMapEnabled = true;
+    
+      clock = new THREE.Clock();     
+      controls = new THREE.PointerLockControls( camera );
+      scene.add(controls.getObject());
+     
+     
+
+     
+     
+     //LUMISADE
+     
+     geometry = new THREE.Geometry();
+
+				for ( i = 0; i < 20000; i ++ ) {
+
+					var vertex = new THREE.Vector3();
+					vertex.x = Math.random() * 2000 - 1000;
+					vertex.y = Math.random() * 2000 - 1000;
+					vertex.z = Math.random() * 2000 - 1000;
+
+					geometry.vertices.push( vertex );
+
+				}
+
+				parameters = [
+					[ [0.02, 0.05, 0.02], 1 ],
+					[ [0.04, 0.05, 0.02], 1 ],
+					[ [0.04, 0.05, 0.02], 1 ],
+					[ [0.04, 0.05, 0.02], 1 ],
+					[ [0.04, 0.05, 0.02], 1 ]
+				];
+
+				for ( i = 0; i < parameters.length; i ++ ) {
+
+					color = parameters[i][0];
+					size  = parameters[i][1];
+
+					materials[i] = new THREE.PointsMaterial( { size: size } );
+
+					particles = new THREE.Points( geometry, materials[i] );
+
+					particles.rotation.x = Math.random() * 6;
+					particles.rotation.y = Math.random() * 6;
+					particles.rotation.z = Math.random() * 6;
+
+					scene.add( particles );
+
+				}
+       
+//-------------------------------------------------------------------------------------------------------------------------     
+      
+       //TAIVAS 
+      var skyBoxGeometry = new THREE.SphereGeometry( 600, 400, 100 );
+      var skyBoxMaterial = new THREE.MeshBasicMaterial( { color: "lightskyblue", side: THREE.BackSide } );
+      var skyBox = new THREE.Mesh( skyBoxGeometry, skyBoxMaterial );
+      scene.add(skyBox);
+          
+//-------------------------------------------------------------------------------------------------------------------------
+          
+        //KAMERA  
+        
+        camera.position.y = 5;  
+        window.addEventListener('resize', function() {
+        var WIDTH = window.innerWidth,
+            HEIGHT = window.innerHeight;
+        renderer.setSize(WIDTH, HEIGHT);
+        camera.aspect = WIDTH / HEIGHT;
+        camera.updateProjectionMatrix();
+      });
+
+//-------------------------------------------------------------------------------------------------------------------------
+       
+       //LATTIA   
+      var floorTexture = new THREE.ImageUtils.loadTexture( 'stonefloor.jpg' );
+          floorTexture.wrapS = floorTexture.wrapT = THREE.RepeatWrapping; 
+          floorTexture.repeat.set( 10, 10 );
+      var floorMaterial = new THREE.MeshBasicMaterial( { /*map: floorTexture*/color: 'white', side: THREE.DoubleSide } );
+      var floorGeometry = new THREE.PlaneGeometry(700, 700, 1, 1);
+      var floor = new Physijs.BoxMesh(floorGeometry, floorMaterial, 0);
+          floor.position.y = -2;
+          floor.rotation.x = Math.PI / 2;
+          floor.castShadow = false;
+          floor.receiveShadow = true;
+      scene.add(floor);
+      
+//-------------------------------------------------------------------------------------------------------------------------
+
+      //KAUPUNKI
+      var ssTexture = new THREE.ImageUtils.loadTexture('skyscraper.jpg')
+      var geometry = new THREE.BoxGeometry( 120, 400, 120 );
+      var material = new THREE.MeshPhongMaterial( { map: ssTexture, side: THREE.DoubleSide } );
+
+      talo1 = new Physijs.BoxMesh( geometry, material );
+      talo1.castShadow = true;
+      talo1.receiveShadow = true;
+      talo1.position.y = 198;
+      talo1.position.z = -200;
+      objects.push(talo1);
+      scene.add(talo1);
+      talo2 = new Physijs.BoxMesh( geometry, material );
+      talo2.castShadow = true;
+      talo2.receiveShadow = true;
+      talo2.position.y = 198;
+      talo2.position.x = 200;
+      talo2.position.z = -80;
+      objects.push(talo2);
+      scene.add(talo2);
+      
+      talo3 = new Physijs.BoxMesh( geometry, material );
+      talo3.castShadow = true;
+      talo3.receiveShadow = true;
+      talo3.position.y = 198;
+      talo3.position.x = -250;
+      talo3.position.z = -80;
+      objects.push(talo3);
+      scene.add(talo3);
+      
+      talo4 = new Physijs.BoxMesh( geometry, material );
+      talo4.castShadow = true;
+      talo4.receiveShadow = true;
+      talo4.position.y = 198;
+      talo4.position.x = -50;
+      talo4.position.z = 250;
+      objects.push(talo4);
+      scene.add(talo4);
+
+//-------------------------------------------------------------------------------------------------------------------------
+
+      //AURINKO
+      var sphere = new THREE.SphereGeometry( 25, 20, 40 );
+
+//-------------------------------------------------------------------------------------------------------------------------
+
+      //VALOT
+      var light = new THREE.AmbientLight( 0x606060 );
+      scene.add( light );  
+
+      var spotLight = new THREE.SpotLight(0xffffff);
+          spotLight.add( new THREE.Mesh( sphere, new THREE.MeshBasicMaterial( { color: 0xffff00 } ) ) );
+          spotLight.position.set(100,200,500);
+          spotLight.castShadow = true;
+
+          spotLight.shadowMapWidth = 1024;
+          spotLight.shadowMapHeight = 1024;
+
+          spotLight.shadowCameraNear = 50;
+          
+      scene.add(spotLight);
+
+
+       pivot = new THREE.Object3D();
+          pivot.add( spotLight);
+          scene.add( pivot );
+
+//-------------------------------------------------------------------------------------------------------------------------
+       
+       //TEKSTI
+      var materialFront = new THREE.MeshLambertMaterial( { color: 0xff0000 } );
+    	var materialSide = new THREE.MeshLambertMaterial( { color: 0x000088 } );
+    	var materialArray = [ materialFront, materialSide ];
+    	var textGeom = new THREE.TextGeometry( "Winterland", 
+    	{
+    		size: 18, height: 4, curveSegments: 3,
+    		font: "helvetiker", style: "normal",
+    		bevelThickness: 2, bevelSize: 1, bevelEnabled: true,
+    		material: 0, extrudeMaterial: 1
+    	});
+
+    	
+    	var textMaterial = new THREE.MeshFaceMaterial(materialArray);
+    	var textMesh = new THREE.Mesh(textGeom, textMaterial );
+    	
+    	textGeom.computeBoundingBox();
+    	var textWidth = textGeom.boundingBox.max.x - textGeom.boundingBox.min.x;
+    	textMesh.rotation.x = Math.PI / 50;
+      textMesh.position.x = -58;
+      textMesh.position.z = -130;
+      textMesh.position.y = 120;
+    	scene.add(textMesh);
+
+
+      var textGeom1 = new THREE.TextGeometry( "by Jan Fincke", 
+    	{
+    		size: 6, height: 2, curveSegments: 3,
+    		font: "helvetiker", style: "normal",
+    		bevelThickness: 2, bevelSize: 1, bevelEnabled: true,
+    		material: 0, extrudeMaterial: 1
+    	});
+      
+      var textMesh1 = new THREE.Mesh(textGeom1, textMaterial);
+      
+      textGeom1.computeBoundingBox();
+      var textWidth1 = textGeom1.boundingBox.max.x - textGeom1.boundingBox.min.x;
+      textMesh1.rotation.x = Math.PI / 50;
+      textMesh1.position.x = -5;
+      textMesh1.position.z = -130;
+      textMesh1.position.y = 110;
+    	scene.add(textMesh1);
+
+//-------------------------------------------------------------------------------------------------------------------------
+
+var loader = new THREE.ColladaLoader();
+
+  loader.options.convertUpAxis = true;
+
+  loader.load( 'glossy.dae', function ( collada ) {
+
+    var dae = collada.scene;
+
+    var skin = collada.skins[ 0 ];
+
+    dae.position.set(0,0,0);
+    dae.scale.set(10,10,10);
+    dae.position.y = -33;
+    dae.position.z = -125;
+    daemesh = dae.children[0].children[0];
+    daemesh.castShadow = true;
+    daemesh.receiveShadow = true;
+    scene.add(dae);
+    objects.push(dae);
+      });
+
+
+ var loader1 = new THREE.ColladaLoader();
+
+  loader1.options.convertUpAxis = true;
+
+
+  loader1.load ( 'Tree01.dae', function ( collada ) {
+    var dae1 = collada.scene;
+    var skin1 = collada.skins[ 0 ];
+    
+    dae1.scale.set(10,10,10);
+    daemesh = dae1.children[0].children[0];
+    daemesh.castShadow = true;
+    daemesh.receiveShadow = true;
+    scene.add(dae1);
+    objects.push(dae1);
+  });
+
+  var loader2 = new THREE.ColladaLoader();
+
+  loader2.options.convertUpAxis = true;
+
+
+  loader2.load ( 'Tree01.dae', function ( collada ) {
+    var dae2 = collada.scene;
+    var skin2 = collada.skins[ 0 ];
+    
+    dae2.scale.set(10,10,10);
+    dae2.position.x = 150;
+    daemesh = dae2.children[0].children[0];
+    daemesh.castShadow = true;
+    daemesh.receiveShadow = true;
+    scene.add(dae2);
+    objects.push(dae2);
+  });
+  
+  var loader3 = new THREE.ColladaLoader();
+
+  loader3.options.convertUpAxis = true;
+
+
+  loader3.load ( 'Tree02.dae', function ( collada ) {
+    var dae3 = collada.scene;
+    var skin3 = collada.skins[ 0 ];
+    
+    dae3.scale.set(10,10,10);
+    dae3.position.z = 150;
+    daemesh = dae3.children[0].children[0];
+    daemesh.castShadow = true;
+    daemesh.receiveShadow = true;
+    scene.add(dae3);
+    objects.push(dae3);
+  });
+  
+  var loader4 = new THREE.ColladaLoader();
+
+  loader4.options.convertUpAxis = true;
+
+
+  loader4.load ( 'Tree02.dae', function ( collada ) {
+    var dae4 = collada.scene;
+    var skin4 = collada.skins[ 0 ];
+    
+    dae4.scale.set(10,10,10);
+    dae4.position.x = -200;
+    dae4.position.z = 10;
+    daemesh = dae4.children[0].children[0];
+    daemesh.castShadow = true;
+    daemesh.receiveShadow = true;
+    scene.add(dae4);
+    objects.push(dae4);
+  });
+  
+  var loader5 = new THREE.ColladaLoader();
+
+  loader5.options.convertUpAxis = true;
+
+
+  loader5.load ( 'Tree02.dae', function ( collada ) {
+    var dae5 = collada.scene;
+    var skin5 = collada.skins[ 0 ];
+    
+    dae5.scale.set(10,10,10);
+    dae5.position.x = -100;
+    dae5.position.z = -100;
+    daemesh = dae5.children[0].children[0];
+    daemesh.castShadow = true;
+    daemesh.receiveShadow = true;
+    scene.add(dae5);
+    objects.push(dae5);
+  });
+  
+  var loader6 = new THREE.ColladaLoader();
+
+  loader6.options.convertUpAxis = true;
+
+
+  loader6.load ( 'Tree01.dae', function ( collada ) {
+    var dae6 = collada.scene;
+    var skin6 = collada.skins[ 0 ];
+    
+    dae6.scale.set(10,10,10);
+    dae6.position.z = -140;
+    dae6.position.x = 150;
+    daemesh = dae6.children[0].children[0];
+    daemesh.castShadow = true;
+    daemesh.receiveShadow = true;
+    scene.add(dae6);
+    objects.push(dae6);
+  });
+
+initPointerLock();
+initControls();
+}
+
+//-------------------------------------------------------------------------------------------------------------------------
+
+//POINTERLOCK CONTROLS
+  function checkForPointerLock() {
+  return 'pointerLockElement' in document || 
+         'mozPointerLockElement' in document || 
+         'webkitPointerLockElement' in document;
+  }
+
+    function initPointerLock() {
+        if ( havePointerLock ) {
+
+				var element = document.body;
+
+				var pointerlockchange = function ( event ) {
+
+					if ( document.pointerLockElement === element || document.mozPointerLockElement === element || document.webkitPointerLockElement === element ) {
+
+						controlsEnabled = true;
+						controls.enabled = true;
+
+						blocker.style.display = 'none';
+
+					} else {
+
+						controls.enabled = false;
+
+						blocker.style.display = '-webkit-box';
+						blocker.style.display = '-moz-box';
+						blocker.style.display = 'box';
+
+						instructions.style.display = '';
+
+					}
+
+				};
+
+				var pointerlockerror = function ( event ) {
+
+					instructions.style.display = '';
+
+				};
+
+				// Hook pointer lock state change events
+				document.addEventListener( 'pointerlockchange', pointerlockchange, false );
+				document.addEventListener( 'mozpointerlockchange', pointerlockchange, false );
+				document.addEventListener( 'webkitpointerlockchange', pointerlockchange, false );
+
+				document.addEventListener( 'pointerlockerror', pointerlockerror, false );
+				document.addEventListener( 'mozpointerlockerror', pointerlockerror, false );
+				document.addEventListener( 'webkitpointerlockerror', pointerlockerror, false );
+
+				instructions.addEventListener( 'click', function ( event ) {
+
+					instructions.style.display = 'none';
+
+					// Ask the browser to lock the pointer
+					element.requestPointerLock = element.requestPointerLock || element.mozRequestPointerLock || element.webkitRequestPointerLock;
+
+					if ( /Firefox/i.test( navigator.userAgent ) ) {
+
+						var fullscreenchange = function ( event ) {
+
+							if ( document.fullscreenElement === element || document.mozFullscreenElement === element || document.mozFullScreenElement === element ) {
+
+								document.removeEventListener( 'fullscreenchange', fullscreenchange );
+								document.removeEventListener( 'mozfullscreenchange', fullscreenchange );
+
+								element.requestPointerLock();
+							}
+
+						};
+
+						document.addEventListener( 'fullscreenchange', fullscreenchange, false );
+						document.addEventListener( 'mozfullscreenchange', fullscreenchange, false );
+
+						element.requestFullscreen = element.requestFullscreen || element.mozRequestFullscreen || element.mozRequestFullScreen || element.webkitRequestFullscreen;
+
+						element.requestFullscreen();
+
+					} else {
+
+						element.requestPointerLock();
+
+					}
+
+				}, false );
+
+			} else {
+
+				instructions.innerHTML = 'Your browser doesn\'t seem to support Pointer Lock API';
+
+			}
+    }
+    
+    function initControls() {
+      document.addEventListener('keydown', onKeyDown, false);
+      document.addEventListener('keyup', onKeyUp, false);
+    }
+    
+    function onKeyDown(e) {
+      switch (e.keyCode) {
+        case 38: // up
+        case 87: // w
+          moveForward = true;
+          break;
+        case 37: // left
+        case 65: // a
+          moveLeft = true;
+          break;
+        case 40: // down
+        case 83: // s
+          moveBackward = true;
+          break;
+        case 39: // right
+        case 68: // d
+          moveRight = true;
+          break;
+        case 32: // space
+          if (canJump === true) velocity.y += 250;
+          canJump = false;
+          break;
+      }
+    }
+    
+    function onKeyUp(e) {
+      switch(e.keyCode) {
+        case 38: // up
+        case 87: // w
+          moveForward = false;
+          break;
+        case 37: // left
+        case 65: // a
+          moveLeft = false;
+          break;
+        case 40: // down
+        case 83: // s
+          moveBackward = false;
+          break;
+        case 39: // right
+        case 68: // d
+          moveRight = false;
+          break;
+      }
+    }
+    function updateControls() {
+      var cameraDirection = controls.getDirection(new THREE.Vector3(0, 0, 0)).clone();
+        if (controlsEnabled) {
+          
+          var time = performance.now();
+					var delta = ( time - prevTime ) / 1000;
+          var walkingSpeed = 1000.0;
+
+          velocity.x -= velocity.x * 10.0 * delta;
+          velocity.z -= velocity.z * 10.0 * delta;
+          velocity.y -= 9.8 * 100.0 * delta;
+
+            if (moveForward) velocity.z -= walkingSpeed * delta;
+            if (moveBackward) velocity.z += walkingSpeed * delta; 
+            if (moveLeft) velocity.x -= walkingSpeed * delta; 
+            if (moveRight) velocity.x += walkingSpeed * delta;
+           
+      
+          controls.getObject().translateX(velocity.x * delta);
+          controls.getObject().translateY(velocity.y * delta);
+          controls.getObject().translateZ(velocity.z * delta);
+
+          if (controls.getObject().position.y < 10) {
+            velocity.y = 0;
+            controls.getObject().position.y = 10;
+            canJump = true;
+          }
+          prevTime = time;
+      } 
+    
+    //var raycaster = new THREE.Raycaster(controls.getObject().position, cameraDirection);  
+    var raycaster = new THREE.Raycaster( new THREE.Vector3(), new THREE.Vector3( 0, - 1, 0 ), cameraDirection ); 
+    raycaster.ray.origin.copy( controls.getObject().position );
+		raycaster.ray.origin.y -= 10;
+    var intersects = raycaster.intersectObjects(objects);  
+    
+
+    $("#status").html("camera direction x: " + cameraDirection.x + " , z: " + cameraDirection.z);
+    
+    if ((intersects.length > 0 && intersects[0].distance < 60)) {
+      velocity.y = Math.max( 0, velocity.y );
+      // console.log(intersects[0].distance)
+      $("#status").append("<br>Collision detected @ " + intersects[0].distance);
+      walkingSpeed = 100;
+        
+      if (moveForward) velocity.z += intersects[0].distance * walkingSpeed;
+      if (moveBackward) velocity.z -= intersects[0].distance * walkingSpeed;
+      if (moveLeft) velocity.x += intersects[0].distance * walkingSpeed;
+      if (moveRight) velocity.x -= intersects[0].distance * walkingSpeed;             
+    }
+    if ( controls.getObject().position.y < 10 ) {
+
+						velocity.y = 0;
+						controls.getObject().position.y = 10;
+
+						canJump = true;
+
+					}
+  }
+ 
+//-------------------------------------------------------------------------------------------------------------------------
+
+//ANIMATE
+    
+    function animate() {
+     var time = Date.now() * 0.00005;
+				for ( i = 0; i < scene.children.length; i ++ ) {
+					var object = scene.children[ i ];
+					if ( object instanceof THREE.Points ) {
+						object.rotation.y = time * ( i < 4 ? i + 1 : - ( i + 1 ) );
+					}
+				}
+     
+        pivot.rotation.y += 0.002;
+        requestAnimationFrame( animate );
+        renderer.render( scene, camera );
+        scene.simulate();
+        updateControls();
+    };
+      
+     
+
+
+    </script>
+    <div id="status"></div>
+  </body>
+</html>
