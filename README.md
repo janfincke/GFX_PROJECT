@@ -3,4 +3,4 @@
 Graphics demo project using THREE.JS, a Javascript-based 3D library.
 
 
-<b>Use Mozilla FIrefox for testing!<b>
+<b>Use Mozilla Firefox for testing!<b>
